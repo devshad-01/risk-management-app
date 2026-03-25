@@ -1,0 +1,26 @@
+name: riskflow_fx
+description: RiskFlow FX - production-grade forex risk manager and lot size calculator.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  get: ^4.6.6
+  dio: ^5.7.0
+  shared_preferences: ^2.3.2
+  intl: ^0.20.2
+  google_fonts: ^6.2.1
+  package_info_plus: ^8.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
