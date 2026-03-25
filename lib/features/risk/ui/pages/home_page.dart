@@ -9,55 +9,48 @@ class HomePage extends GetView<TradeController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero,
-          side: BorderSide(
-            color: AppTheme.brandSecondary,
-            width: 0.8,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppTheme.brandSecondary, width: 0.8),
-                    borderRadius: BorderRadius.zero,
-                  ),
-                  child: ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.key_rounded, color: AppTheme.brandSecondary),
-                    title: const Text(
-                      'API Configuration',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: const Text('Manage TwelveData key'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _showApiKeyDialog(context);
-                    },
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Obx(
-                () => Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Text(
-                    controller.appVersionLabel.value,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
       appBar: AppBar(
+        leading: PopupMenuButton<_MenuAction>(
+          tooltip: 'Menu',
+          icon: const Icon(Icons.menu_rounded),
+          position: PopupMenuPosition.under,
+          offset: const Offset(0, 4),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+            side: BorderSide(color: AppTheme.brandSecondary, width: 0.8),
+          ),
+          itemBuilder: (context) => [
+            const PopupMenuItem<_MenuAction>(
+              value: _MenuAction.settings,
+              child: Row(
+                children: [
+                  Icon(Icons.tune_rounded, size: 18, color: AppTheme.brandSecondary),
+                  SizedBox(width: 8),
+                  Text(
+                    'API Configuration',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(height: 1),
+            const PopupMenuItem<_MenuAction>(
+              enabled: false,
+              child: SizedBox(
+                width: 220,
+                child: Text(
+                  'For educational purposes / not financial advice',
+                  style: TextStyle(fontSize: 12, color: AppTheme.brandSecondary),
+                ),
+              ),
+            ),
+          ],
+          onSelected: (action) {
+            if (action == _MenuAction.settings) {
+              _showApiKeyDialog(context);
+            }
+          },
+        ),
         title: const SizedBox.shrink(),
       ),
       body: SafeArea(
@@ -336,38 +329,126 @@ class HomePage extends GetView<TradeController> {
 
   Future<void> _showApiKeyDialog(BuildContext context) async {
     final localController = TextEditingController(text: controller.apiKeyCtrl.text);
+    var selectedMode = controller.selectedPriceMode.value;
+    var selectedProvider = controller.selectedPriceProvider.value;
 
     await showDialog<void>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('TwelveData API Key'),
-          content: TextField(
-            controller: localController,
-            decoration: const InputDecoration(
-              labelText: 'API Key',
-              hintText: 'Paste key here',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                controller.clearApiKey();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Clear'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                await controller.saveApiKey(localController.text);
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-                await controller.fetchLivePrice();
-              },
-              child: const Text('Save'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'API Configuration',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Price Mode'),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _modeButton(
+                            label: 'Manual',
+                            selected: selectedMode == PriceMode.manual,
+                            onTap: () => setState(() => selectedMode = PriceMode.manual),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _modeButton(
+                            label: 'Auto',
+                            selected: selectedMode == PriceMode.auto,
+                            onTap: () => setState(() => selectedMode = PriceMode.auto),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (selectedMode == PriceMode.auto) ...[
+                      DropdownButtonFormField<PriceProvider>(
+                        initialValue: selectedProvider,
+                        decoration: const InputDecoration(labelText: 'Provider'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: PriceProvider.twelveData,
+                            child: Text('Twelve Data (Yahoo backup)'),
+                          ),
+                          DropdownMenuItem(
+                            value: PriceProvider.yahooFinance,
+                            child: Text('Yahoo Finance'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => selectedProvider = value);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      if (selectedProvider == PriceProvider.twelveData)
+                        TextField(
+                          controller: localController,
+                          decoration: const InputDecoration(
+                            labelText: 'TwelveData API Key',
+                            hintText: 'Paste key here',
+                          ),
+                        ),
+                    ],
+                    const SizedBox(height: 12),
+                    const Text(
+                      'For educational purposes / not financial advice',
+                      style: TextStyle(fontSize: 12, color: AppTheme.brandSecondary),
+                    ),
+                    const SizedBox(height: 10),
+                    Obx(
+                      () => Text(
+                        controller.appVersionLabel.value,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            controller.clearApiKey();
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('Clear Key'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () async {
+                            await controller.updatePriceMode(selectedMode);
+                            await controller.updatePriceProvider(selectedProvider);
+                            if (selectedProvider == PriceProvider.twelveData) {
+                              await controller.saveApiKey(localController.text);
+                            }
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                            }
+                            if (selectedMode == PriceMode.auto) {
+                              await controller.fetchLivePrice();
+                            }
+                          },
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -390,11 +471,9 @@ class HomePage extends GetView<TradeController> {
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final instrument = instruments[index];
-                      final selected = controller.selectedInstrument.value.symbol == instrument.symbol;
                       return ListTile(
                         title: Text(instrument.displayLabel),
                         subtitle: Text(instrument.category.toUpperCase()),
-                        selected: selected,
                         onTap: () {
                           controller.updateInstrument(instrument);
                           Navigator.of(context).pop();
@@ -464,3 +543,5 @@ class HomePage extends GetView<TradeController> {
     );
   }
 }
+
+enum _MenuAction { settings }

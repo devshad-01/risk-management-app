@@ -6,6 +6,7 @@ import 'package:riskflow_fx/features/risk/controllers/trade_controller.dart';
 import 'package:riskflow_fx/features/risk/services/cached_price_service.dart';
 import 'package:riskflow_fx/features/risk/services/local_storage_service.dart';
 import 'package:riskflow_fx/features/risk/services/twelvedata_price_service.dart';
+import 'package:riskflow_fx/features/risk/services/yahoo_finance_price_service.dart';
 import 'package:riskflow_fx/features/risk/ui/pages/splash_page.dart';
 
 Future<void> main() async {
@@ -17,7 +18,7 @@ Future<void> main() async {
     await storageService.writeString('twelvedata_api_key', envApiKey);
   }
 
-  final priceService = CachedPriceService(
+  final twelveDataService = CachedPriceService(
     primary: TwelveDataPriceService(
       apiKeyResolver: () => storageService.readString('twelvedata_api_key'),
     ),
@@ -25,9 +26,16 @@ Future<void> main() async {
     instruments: supportedInstruments,
   );
 
+  final yahooService = CachedPriceService(
+    primary: YahooFinancePriceService(),
+    storageService: storageService,
+    instruments: supportedInstruments,
+  );
+
   Get.put<TradeController>(
     TradeController(
-      priceService: priceService,
+      priceService: twelveDataService,
+      yahooPriceService: yahooService,
       storageService: storageService,
     ),
     permanent: true,

@@ -15,15 +15,20 @@ import 'package:riskflow_fx/features/risk/services/local_storage_service.dart';
 import 'package:riskflow_fx/features/risk/services/price_service.dart';
 
 enum ExitMode { simple, partial }
+enum PriceMode { manual, auto }
+enum PriceProvider { twelveData, yahooFinance }
 
 class TradeController extends GetxController {
   TradeController({
     required PriceService priceService,
+    required PriceService yahooPriceService,
     required LocalStorageService storageService,
   })  : _priceService = priceService,
+        _yahooPriceService = yahooPriceService,
         _storageService = storageService;
 
   final PriceService _priceService;
+  final PriceService _yahooPriceService;
   final LocalStorageService _storageService;
   final RiskCalculator _calculator = const RiskCalculator();
 
@@ -31,6 +36,8 @@ class TradeController extends GetxController {
   static const _draftKey = 'trade_draft_v1';
   static const _favoritesKey = 'favorite_symbols_v1';
   static const _apiKeyStorageKey = 'twelvedata_api_key';
+  static const _priceModeKey = 'price_mode_v1';
+  static const _priceProviderKey = 'price_provider_v1';
 
   final balanceCtrl = TextEditingController(text: '5000');
   final riskPercentCtrl = TextEditingController(text: '1.0');
@@ -47,6 +54,8 @@ class TradeController extends GetxController {
   final instrumentQuery = ''.obs;
   final selectedInstrumentTab = 'all'.obs;
   final selectedExitMode = ExitMode.simple.obs;
+  final selectedPriceMode = PriceMode.manual.obs;
+  final selectedPriceProvider = PriceProvider.twelveData.obs;
   final useBreakEven = false.obs;
   final currentPrice = RxnDouble();
   final currentPriceSource = Rxn<PriceSource>();
@@ -122,6 +131,16 @@ class TradeController extends GetxController {
     selectedInstrumentTab.value = value;
   }
 
+  Future<void> updatePriceMode(PriceMode mode) async {
+    selectedPriceMode.value = mode;
+    await _storageService.writeString(_priceModeKey, mode.name);
+  }
+
+  Future<void> updatePriceProvider(PriceProvider provider) async {
+    selectedPriceProvider.value = provider;
+    await _storageService.writeString(_priceProviderKey, provider.name);
+  }
+
   bool isFavorite(String symbol) => favoriteSymbols.contains(symbol);
 
   Future<void> toggleFavorite(String symbol) async {
@@ -174,9 +193,14 @@ class TradeController extends GetxController {
   }
 
   Future<void> fetchLivePrice() async {
+    if (selectedPriceMode.value == PriceMode.manual) {
+      lastError.value = 'Manual mode enabled. Switch to Auto Price in menu to fetch live data.';
+      return;
+    }
+
     isFetchingPrice.value = true;
     try {
-      final quote = await _priceService.getLatestPrice(selectedInstrument.value.symbol);
+      final quote = await _fetchQuoteByProvider(selectedPriceProvider.value);
       final precision = selectedInstrument.value.pricePrecision;
       currentPrice.value = quote.price;
       currentPriceSource.value = quote.source;
@@ -187,7 +211,7 @@ class TradeController extends GetxController {
     } catch (error) {
       final message = error.toString();
       if (message.contains('Missing TWELVEDATA_API_KEY')) {
-        lastError.value = 'Missing API key. Set it from API Key in the app bar.';
+        lastError.value = 'Missing API key. Configure it in menu > API Configuration.';
       } else {
         lastError.value = message;
       }
@@ -455,6 +479,22 @@ class TradeController extends GetxController {
   }
 
   void _loadDraft() {
+    final priceModeRaw = _storageService.readString(_priceModeKey);
+    if (priceModeRaw != null) {
+      final mode = PriceMode.values.where((item) => item.name == priceModeRaw).firstOrNull;
+      if (mode != null) {
+        selectedPriceMode.value = mode;
+      }
+    }
+
+    final providerRaw = _storageService.readString(_priceProviderKey);
+    if (providerRaw != null) {
+      final provider = PriceProvider.values.where((item) => item.name == providerRaw).firstOrNull;
+      if (provider != null) {
+        selectedPriceProvider.value = provider;
+      }
+    }
+
     final apiKey = _storageService.readString(_apiKeyStorageKey);
     if (apiKey != null && apiKey.isNotEmpty) {
       apiKeyCtrl.text = apiKey;
@@ -514,6 +554,18 @@ class TradeController extends GetxController {
       appVersionLabel.value = 'v${info.version} (${info.buildNumber})';
     } catch (_) {
       appVersionLabel.value = 'v1.0.0 (1)';
+    }
+  }
+
+  Future<PriceQuote> _fetchQuoteByProvider(PriceProvider provider) async {
+    if (provider == PriceProvider.yahooFinance) {
+      return _yahooPriceService.getLatestPrice(selectedInstrument.value.symbol);
+    }
+
+    try {
+      return await _priceService.getLatestPrice(selectedInstrument.value.symbol);
+    } catch (_) {
+      return _yahooPriceService.getLatestPrice(selectedInstrument.value.symbol);
     }
   }
 }
