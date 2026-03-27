@@ -20,12 +20,12 @@ class HomePage extends GetView<TradeController> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return Stack(
+            final compactWindow = constraints.maxHeight < 620 || constraints.maxWidth < 360;
+            final listBottomPadding = compactWindow ? 20.0 : 250.0;
+
+            final formList = ListView(
+              padding: EdgeInsets.fromLTRB(16, 10, 16, listBottomPadding),
               children: [
-                Positioned.fill(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 250),
-                    children: [
                       Obx(() {
                         final tabs = controller.availableTabs;
                         final selected = controller.selectedInstrumentTab.value;
@@ -181,9 +181,20 @@ class HomePage extends GetView<TradeController> {
                         }
                         return Text(err, style: const TextStyle(color: Colors.redAccent));
                       }),
-                    ],
-                  ),
-                ),
+                      if (compactWindow) ...[
+                        const SizedBox(height: 12),
+                        _resultCard(context, hideWhenKeyboardOpen: false),
+                      ],
+              ],
+            );
+
+            if (compactWindow) {
+              return formList;
+            }
+
+            return Stack(
+              children: [
+                Positioned.fill(child: formList),
                 _resultOverlay(context),
               ],
             );
@@ -196,106 +207,110 @@ class HomePage extends GetView<TradeController> {
   Widget _resultOverlay(BuildContext context) {
     return Align(
       alignment: Alignment.bottomCenter,
-      child: Obx(() {
-        final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-        final result = controller.lastRiskResult.value;
-        final partial = controller.partialPlanResult.value;
-
-        if (result == null || keyboardOpen) {
-          return const SizedBox.shrink();
-        }
-
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111A26),
-            borderRadius: BorderRadius.zero,
-            border: Border.all(color: AppTheme.brandPrimary.withValues(alpha: 0.35)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x55000000),
-                blurRadius: 14,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Lot Size: ${result.lotSize.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    Text('Risk: ${result.riskAmount.toStringAsFixed(2)}'),
-                    Text('SL Distance: ${result.stopLossPips.toStringAsFixed(1)} pips'),
-                    if (controller.selectedExitMode.value == ExitMode.simple &&
-                        controller.simpleTpPrice.value != null)
-                      Text('TP Price: ${controller.simpleTpPrice.value!.toStringAsFixed(controller.selectedInstrument.value.pricePrecision)}'),
-                    if (controller.selectedExitMode.value == ExitMode.partial &&
-                        controller.tp1Price.value != null &&
-                        controller.tp2Price.value != null)
-                      Text(
-                        'TP1: ${controller.tp1Price.value!.toStringAsFixed(controller.selectedInstrument.value.pricePrecision)} '
-                        '• TP2: ${controller.tp2Price.value!.toStringAsFixed(controller.selectedInstrument.value.pricePrecision)}',
-                      ),
-                    if (partial != null) ...[
-                      const SizedBox(height: 6),
-                      Text('Profit TP1: ${partial.tp1Profit.toStringAsFixed(2)}'),
-                      Text('Profit TP2: ${partial.tp2Profit.toStringAsFixed(2)}'),
-                      Text('Blended Total: ${partial.totalProfit.toStringAsFixed(2)}'),
-                    ],
-                    const SizedBox(height: 8),
-                    if (controller.isCustomSplit)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.tonal(
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size(0, 48),
-                              ),
-                              onPressed: controller.tp1LotSize != null && controller.tp1LotSize! > 0
-                                  ? controller.copyTp1Lot
-                                  : null,
-                              child: Text(
-                                'Copy TP1 ${controller.tp1LotSize?.toStringAsFixed(2) ?? '--'}',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: FilledButton.tonal(
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size(0, 48),
-                              ),
-                              onPressed: controller.tp2LotSize != null && controller.tp2LotSize! > 0
-                                  ? controller.copyTp2Lot
-                                  : null,
-                              child: Text(
-                                'Copy TP2 ${controller.tp2LotSize?.toStringAsFixed(2) ?? '--'}',
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.tonal(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 48),
-                          ),
-                          onPressed: result.lotSize > 0 ? controller.copyLotSize : null,
-                          child: const Text('Copy Lot Size'),
-                        ),
-                      ),
-                  ],
-                ),
-        );
-      }),
+      child: _resultCard(context, hideWhenKeyboardOpen: true),
     );
+  }
+
+  Widget _resultCard(BuildContext context, {required bool hideWhenKeyboardOpen}) {
+    return Obx(() {
+      final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+      final result = controller.lastRiskResult.value;
+      final partial = controller.partialPlanResult.value;
+
+      if (result == null || (hideWhenKeyboardOpen && keyboardOpen)) {
+        return const SizedBox.shrink();
+      }
+
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111A26),
+          borderRadius: BorderRadius.zero,
+          border: Border.all(color: AppTheme.brandPrimary.withValues(alpha: 0.35)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 14,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lot Size: ${result.lotSize.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 6),
+            Text('Risk: ${result.riskAmount.toStringAsFixed(2)}'),
+            Text('SL Distance: ${result.stopLossPips.toStringAsFixed(1)} pips'),
+            if (controller.selectedExitMode.value == ExitMode.simple &&
+                controller.simpleTpPrice.value != null)
+              Text('TP Price: ${controller.simpleTpPrice.value!.toStringAsFixed(controller.selectedInstrument.value.pricePrecision)}'),
+            if (controller.selectedExitMode.value == ExitMode.partial &&
+                controller.tp1Price.value != null &&
+                controller.tp2Price.value != null)
+              Text(
+                'TP1: ${controller.tp1Price.value!.toStringAsFixed(controller.selectedInstrument.value.pricePrecision)} '
+                '• TP2: ${controller.tp2Price.value!.toStringAsFixed(controller.selectedInstrument.value.pricePrecision)}',
+              ),
+            if (partial != null) ...[
+              const SizedBox(height: 6),
+              Text('Profit TP1: ${partial.tp1Profit.toStringAsFixed(2)}'),
+              Text('Profit TP2: ${partial.tp2Profit.toStringAsFixed(2)}'),
+              Text('Blended Total: ${partial.totalProfit.toStringAsFixed(2)}'),
+            ],
+            const SizedBox(height: 8),
+            if (controller.isCustomSplit)
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonal(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                      onPressed: controller.tp1LotSize != null && controller.tp1LotSize! > 0
+                          ? controller.copyTp1Lot
+                          : null,
+                      child: Text(
+                        'Copy TP1 ${controller.tp1LotSize?.toStringAsFixed(2) ?? '--'}',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.tonal(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                      onPressed: controller.tp2LotSize != null && controller.tp2LotSize! > 0
+                          ? controller.copyTp2Lot
+                          : null,
+                      child: Text(
+                        'Copy TP2 ${controller.tp2LotSize?.toStringAsFixed(2) ?? '--'}',
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                  ),
+                  onPressed: result.lotSize > 0 ? controller.copyLotSize : null,
+                  child: const Text('Copy Lot Size'),
+                ),
+              ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _numberField(TextEditingController inputController, String label) {
