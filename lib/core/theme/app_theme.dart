@@ -12,6 +12,7 @@ class AppTheme {
       useMaterial3: true,
       fontFamily: GoogleFonts.rajdhani().fontFamily,
       textTheme: baseTextTheme,
+      primaryTextTheme: baseTextTheme,
       colorScheme: const ColorScheme.dark(
         primary: brandPrimary,
         secondary: brandSecondary,
@@ -37,7 +38,7 @@ class AppTheme {
           backgroundColor: brandPrimary,
           foregroundColor: const Color(0xFF06231F),
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          minimumSize: const Size.fromHeight(48),
+          minimumSize: const Size(0, 48),
         ),
       ),
       chipTheme: const ChipThemeData(

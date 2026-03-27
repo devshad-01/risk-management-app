@@ -1,17 +1,41 @@
-# riskflow_fx
+# RiskFlow FX
 
-A new Flutter project.
+RiskFlow FX is a Flutter-based forex risk manager and lot size calculator.
 
-## Getting Started
+## Live Price Providers
 
-This project is a starting point for a Flutter application.
+- Default provider: `TwelveData`
+- Automatic fallback: `Yahoo Finance`
+- `Yahoo Finance` does not require an API key in this app.
+- `TwelveData` requires a key and can be set in app: Menu > API Configuration.
 
-A few resources to get you started if this is your first Flutter project:
+## Running Locally
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter pub get
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Play Store Release (Android)
+
+1. Create upload keystore:
+
+```bash
+keytool -genkey -v -keystore ~/riskflow-upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+2. Create `android/key.properties` from `android/key.properties.example` and fill real values.
+
+3. Build release app bundle:
+
+```bash
+flutter clean
+flutter pub get
+flutter build appbundle --release
+```
+
+4. Upload `build/app/outputs/bundle/release/app-release.aab` to Play Console.
+
+## Security Note
+
+Do not ship your personal `TwelveData` key inside release builds. Prefer user-provided keys or move price requests to your backend.

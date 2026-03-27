@@ -1,4 +1,4 @@
-package com.example.riskflow_fx
+package com.devshad.riskflowfx
 
 import io.flutter.embedding.android.FlutterActivity
 

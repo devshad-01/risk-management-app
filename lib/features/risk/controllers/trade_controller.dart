@@ -15,7 +15,6 @@ import 'package:riskflow_fx/features/risk/services/local_storage_service.dart';
 import 'package:riskflow_fx/features/risk/services/price_service.dart';
 
 enum ExitMode { simple, partial }
-enum PriceMode { manual, auto }
 enum PriceProvider { twelveData, yahooFinance }
 
 class TradeController extends GetxController {
@@ -36,7 +35,6 @@ class TradeController extends GetxController {
   static const _draftKey = 'trade_draft_v1';
   static const _favoritesKey = 'favorite_symbols_v1';
   static const _apiKeyStorageKey = 'twelvedata_api_key';
-  static const _priceModeKey = 'price_mode_v1';
   static const _priceProviderKey = 'price_provider_v1';
 
   final balanceCtrl = TextEditingController(text: '5000');
@@ -54,7 +52,6 @@ class TradeController extends GetxController {
   final instrumentQuery = ''.obs;
   final selectedInstrumentTab = 'all'.obs;
   final selectedExitMode = ExitMode.simple.obs;
-  final selectedPriceMode = PriceMode.manual.obs;
   final selectedPriceProvider = PriceProvider.twelveData.obs;
   final useBreakEven = false.obs;
   final currentPrice = RxnDouble();
@@ -131,11 +128,6 @@ class TradeController extends GetxController {
     selectedInstrumentTab.value = value;
   }
 
-  Future<void> updatePriceMode(PriceMode mode) async {
-    selectedPriceMode.value = mode;
-    await _storageService.writeString(_priceModeKey, mode.name);
-  }
-
   Future<void> updatePriceProvider(PriceProvider provider) async {
     selectedPriceProvider.value = provider;
     await _storageService.writeString(_priceProviderKey, provider.name);
@@ -193,11 +185,6 @@ class TradeController extends GetxController {
   }
 
   Future<void> fetchLivePrice() async {
-    if (selectedPriceMode.value == PriceMode.manual) {
-      lastError.value = 'Manual mode enabled. Switch to Auto Price in menu to fetch live data.';
-      return;
-    }
-
     isFetchingPrice.value = true;
     try {
       final quote = await _fetchQuoteByProvider(selectedPriceProvider.value);
@@ -479,14 +466,6 @@ class TradeController extends GetxController {
   }
 
   void _loadDraft() {
-    final priceModeRaw = _storageService.readString(_priceModeKey);
-    if (priceModeRaw != null) {
-      final mode = PriceMode.values.where((item) => item.name == priceModeRaw).firstOrNull;
-      if (mode != null) {
-        selectedPriceMode.value = mode;
-      }
-    }
-
     final providerRaw = _storageService.readString(_priceProviderKey);
     if (providerRaw != null) {
       final provider = PriceProvider.values.where((item) => item.name == providerRaw).firstOrNull;

@@ -10,46 +10,10 @@ class HomePage extends GetView<TradeController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: PopupMenuButton<_MenuAction>(
+        leading: IconButton(
           tooltip: 'Menu',
           icon: const Icon(Icons.menu_rounded),
-          position: PopupMenuPosition.under,
-          offset: const Offset(0, 4),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
-            side: BorderSide(color: AppTheme.brandSecondary, width: 0.8),
-          ),
-          itemBuilder: (context) => [
-            const PopupMenuItem<_MenuAction>(
-              value: _MenuAction.settings,
-              child: Row(
-                children: [
-                  Icon(Icons.tune_rounded, size: 18, color: AppTheme.brandSecondary),
-                  SizedBox(width: 8),
-                  Text(
-                    'API Configuration',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-            const PopupMenuDivider(height: 1),
-            const PopupMenuItem<_MenuAction>(
-              enabled: false,
-              child: SizedBox(
-                width: 220,
-                child: Text(
-                  'For educational purposes / not financial advice',
-                  style: TextStyle(fontSize: 12, color: AppTheme.brandSecondary),
-                ),
-              ),
-            ),
-          ],
-          onSelected: (action) {
-            if (action == _MenuAction.settings) {
-              _showApiKeyDialog(context);
-            }
-          },
+          onPressed: () => _openMenuSheet(context),
         ),
         title: const SizedBox.shrink(),
       ),
@@ -233,8 +197,13 @@ class HomePage extends GetView<TradeController> {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Obx(() {
+        final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
         final result = controller.lastRiskResult.value;
         final partial = controller.partialPlanResult.value;
+
+        if (result == null || keyboardOpen) {
+          return const SizedBox.shrink();
+        }
 
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -251,9 +220,7 @@ class HomePage extends GetView<TradeController> {
               ),
             ],
           ),
-          child: result == null
-              ? const Text('Calculated result appears here')
-              : Column(
+          child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -286,6 +253,9 @@ class HomePage extends GetView<TradeController> {
                         children: [
                           Expanded(
                             child: FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(0, 48),
+                              ),
                               onPressed: controller.tp1LotSize != null && controller.tp1LotSize! > 0
                                   ? controller.copyTp1Lot
                                   : null,
@@ -297,6 +267,9 @@ class HomePage extends GetView<TradeController> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(0, 48),
+                              ),
                               onPressed: controller.tp2LotSize != null && controller.tp2LotSize! > 0
                                   ? controller.copyTp2Lot
                                   : null,
@@ -308,9 +281,15 @@ class HomePage extends GetView<TradeController> {
                         ],
                       )
                     else
-                      FilledButton.tonal(
-                        onPressed: result.lotSize > 0 ? controller.copyLotSize : null,
-                        child: const Text('Copy Lot Size'),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonal(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                          ),
+                          onPressed: result.lotSize > 0 ? controller.copyLotSize : null,
+                          child: const Text('Copy Lot Size'),
+                        ),
                       ),
                   ],
                 ),
@@ -327,20 +306,76 @@ class HomePage extends GetView<TradeController> {
     );
   }
 
-  Future<void> _showApiKeyDialog(BuildContext context) async {
+  Future<void> _openMenuSheet(BuildContext context) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+        side: BorderSide(color: AppTheme.brandSecondary, width: 0.8),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.tune_rounded, color: AppTheme.brandSecondary),
+                  title: const Text(
+                    'API Configuration',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop('api');
+                  },
+                ),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                const Text(
+                  'For educational purposes / not financial advice',
+                  style: TextStyle(fontSize: 12, color: AppTheme.brandSecondary),
+                ),
+                const SizedBox(height: 8),
+                Obx(
+                  () => Text(
+                    controller.appVersionLabel.value,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (action == 'api' && context.mounted) {
+      await _showApiSettingsSheet(context);
+    }
+  }
+
+  Future<void> _showApiSettingsSheet(BuildContext context) async {
     final localController = TextEditingController(text: controller.apiKeyCtrl.text);
-    var selectedMode = controller.selectedPriceMode.value;
     var selectedProvider = controller.selectedPriceProvider.value;
 
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (context) {
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return Dialog(
-              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,70 +385,34 @@ class HomePage extends GetView<TradeController> {
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Price Mode'),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _modeButton(
-                            label: 'Manual',
-                            selected: selectedMode == PriceMode.manual,
-                            onTap: () => setState(() => selectedMode = PriceMode.manual),
-                          ),
+                    DropdownButtonFormField<PriceProvider>(
+                      initialValue: selectedProvider,
+                      decoration: const InputDecoration(labelText: 'Provider'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: PriceProvider.twelveData,
+                          child: Text('Twelve Data (Yahoo backup)'),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _modeButton(
-                            label: 'Auto',
-                            selected: selectedMode == PriceMode.auto,
-                            onTap: () => setState(() => selectedMode = PriceMode.auto),
-                          ),
+                        DropdownMenuItem(
+                          value: PriceProvider.yahooFinance,
+                          child: Text('Yahoo Finance'),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (selectedMode == PriceMode.auto) ...[
-                      DropdownButtonFormField<PriceProvider>(
-                        initialValue: selectedProvider,
-                        decoration: const InputDecoration(labelText: 'Provider'),
-                        items: const [
-                          DropdownMenuItem(
-                            value: PriceProvider.twelveData,
-                            child: Text('Twelve Data (Yahoo backup)'),
-                          ),
-                          DropdownMenuItem(
-                            value: PriceProvider.yahooFinance,
-                            child: Text('Yahoo Finance'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() => selectedProvider = value);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      if (selectedProvider == PriceProvider.twelveData)
-                        TextField(
-                          controller: localController,
-                          decoration: const InputDecoration(
-                            labelText: 'TwelveData API Key',
-                            hintText: 'Paste key here',
-                          ),
-                        ),
-                    ],
-                    const SizedBox(height: 12),
-                    const Text(
-                      'For educational purposes / not financial advice',
-                      style: TextStyle(fontSize: 12, color: AppTheme.brandSecondary),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => selectedProvider = value);
+                        }
+                      },
                     ),
                     const SizedBox(height: 10),
-                    Obx(
-                      () => Text(
-                        controller.appVersionLabel.value,
-                        style: const TextStyle(fontSize: 12),
+                    if (selectedProvider == PriceProvider.twelveData)
+                      TextField(
+                        controller: localController,
+                        decoration: const InputDecoration(
+                          labelText: 'TwelveData API Key',
+                          hintText: 'Paste key here',
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -421,24 +420,24 @@ class HomePage extends GetView<TradeController> {
                         TextButton(
                           onPressed: () {
                             controller.clearApiKey();
-                            Navigator.of(context).pop();
+                            Navigator.of(sheetContext).pop();
                           },
                           child: const Text('Clear Key'),
                         ),
                         const SizedBox(width: 8),
                         FilledButton(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(96, 48),
+                          ),
                           onPressed: () async {
-                            await controller.updatePriceMode(selectedMode);
                             await controller.updatePriceProvider(selectedProvider);
                             if (selectedProvider == PriceProvider.twelveData) {
                               await controller.saveApiKey(localController.text);
                             }
-                            if (context.mounted) {
-                              Navigator.of(context).pop();
+                            if (sheetContext.mounted) {
+                              Navigator.of(sheetContext).pop();
                             }
-                            if (selectedMode == PriceMode.auto) {
-                              await controller.fetchLivePrice();
-                            }
+                            await controller.fetchLivePrice();
                           },
                           child: const Text('Save'),
                         ),
@@ -512,7 +511,7 @@ class HomePage extends GetView<TradeController> {
     required VoidCallback onTap,
   }) {
     return SizedBox(
-      height: 36,
+      height: 42,
       child: selected
           ? FilledButton(
               onPressed: onTap,
@@ -544,4 +543,3 @@ class HomePage extends GetView<TradeController> {
   }
 }
 
-enum _MenuAction { settings }
