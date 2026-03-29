@@ -20,7 +20,8 @@ class HomePage extends GetView<TradeController> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compactWindow = constraints.maxHeight < 620 || constraints.maxWidth < 360;
+            final screenSize = MediaQuery.of(context).size;
+            final compactWindow = screenSize.height < 620 || screenSize.width < 360;
             final listBottomPadding = compactWindow ? 20.0 : 250.0;
 
             final formList = ListView(
